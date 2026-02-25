@@ -99,13 +99,26 @@ const generateEmployees = () => {
 };
 generateEmployees();
 
+// --- PERSISTENCE LOGIC (LocalStorage) ---
 let REQUESTS: ExpenseRequest[] = [];
+try {
+    const storedReqs = localStorage.getItem('finboard_requests');
+    if (storedReqs) REQUESTS = JSON.parse(storedReqs);
+} catch(e) {}
+const syncRequests = () => localStorage.setItem('finboard_requests', JSON.stringify(REQUESTS));
+
 let BOARD_SESSIONS: BoardSession[] = [];
 let HIDDEN_FUNDS: Record<string, boolean> = {};
 let DISPATCHED_DIRECTIVES: DirectiveSnapshot[] = [];
 
-// NEW: Invoice Storage
+// NEW: Invoice Storage (Persisted)
 let INVOICES: Invoice[] = [];
+try {
+    const storedInv = localStorage.getItem('finboard_invoices');
+    if (storedInv) INVOICES = JSON.parse(storedInv);
+} catch(e) {}
+const syncInvoices = () => localStorage.setItem('finboard_invoices', JSON.stringify(INVOICES));
+
 
 export const getHiddenFunds = async (): Promise<Record<string, boolean>> => {
   return { ...HIDDEN_FUNDS };
@@ -122,7 +135,7 @@ export const toggleSectionVisibility = async (category: string): Promise<void> =
 };
 
 
-// --- CASH INFLOW DATA (PROMPT 6.1-010: Stress Test) ---
+// --- CASH INFLOW DATA (Persisted) ---
 const generateCashInflowRecords = (count: number, isCurrentWeek: boolean = true): CashInflowRecord[] => {
   const records: CashInflowRecord[] = [];
   const categories: ('პროექტები' | 'სერვისები' | 'ნაწილები')[] = ['პროექტები', 'სერვისები', 'ნაწილები'];
@@ -165,13 +178,36 @@ const generateArchivedData = (): Record<string, CashInflowRecord[]> => {
     return data;
 };
 
-
 let CURRENT_WEEK_CASH_INFLOW: CashInflowRecord[] = generateCashInflowRecords(50);
 let ARCHIVED_CASH_INFLOW: Record<string, CashInflowRecord[]> = generateArchivedData();
 
-// --- DEBT/CREDIT DATA (PROMPT 6.1-011) ---
+try {
+    const storedCW = localStorage.getItem('finboard_cw_inflow');
+    if (storedCW) CURRENT_WEEK_CASH_INFLOW = JSON.parse(storedCW);
+    const storedArch = localStorage.getItem('finboard_archived_inflow');
+    if (storedArch) ARCHIVED_CASH_INFLOW = JSON.parse(storedArch);
+} catch(e) {}
+
+const syncCashInflow = () => {
+    localStorage.setItem('finboard_cw_inflow', JSON.stringify(CURRENT_WEEK_CASH_INFLOW));
+    localStorage.setItem('finboard_archived_inflow', JSON.stringify(ARCHIVED_CASH_INFLOW));
+};
+
+// --- DEBT/CREDIT DATA (Persisted) ---
 let DEBTORS: DebtRecord[] = Array.from({ length: 10 }, (_, i) => ({ id: `debtor_${i + 1}`, name: `კლიენტი A${i + 1}`, previousBalance: 12000, increase: 500, decrease: 200, currentBalance: 12300, comment: 'Initial' }));
 let CREDITORS: DebtRecord[] = Array.from({ length: 10 }, (_, i) => ({ id: `creditor_${i + 1}`, name: `მომწოდებელი B${i + 1}`, previousBalance: 8000, increase: 1000, decrease: 400, currentBalance: 8600, comment: 'Initial' }));
+
+try {
+    const sDebtors = localStorage.getItem('finboard_debtors');
+    if (sDebtors) DEBTORS = JSON.parse(sDebtors);
+    const sCreditors = localStorage.getItem('finboard_creditors');
+    if (sCreditors) CREDITORS = JSON.parse(sCreditors);
+} catch(e) {}
+
+const syncDebts = () => {
+    localStorage.setItem('finboard_debtors', JSON.stringify(DEBTORS));
+    localStorage.setItem('finboard_creditors', JSON.stringify(CREDITORS));
+}
 
 // --- BANKING DATA ---
 let BANK_ACCOUNTS: BankAccount[] = [
@@ -286,7 +322,7 @@ export const getBudgetAnalysisComments = async (): Promise<Record<string, string
 export const updateBudgetAnalysisComment = async (fundId: string, comment: string): Promise<void> => { BUDGET_ANALYSIS_COMMENTS[fundId] = comment; };
 
 
-// PROMPT 6.7-002: Project Revenue Data
+// PROMPT 6.7-002: Project Revenue Data (Persisted)
 let MOCK_PROJECTS: ProjectRevenue[] = [
   {
     id: 'proj_1', clientName: 'm2', contractDate: '2026-02-15T12:00:00.000Z', durationInWeeks: 26, contractNumber: 'C-001',
@@ -332,6 +368,12 @@ let MOCK_PROJECTS: ProjectRevenue[] = [
   }
 ];
 
+try {
+    const sProjects = localStorage.getItem('finboard_projects');
+    if (sProjects) MOCK_PROJECTS = JSON.parse(sProjects);
+} catch(e) {}
+const syncProjects = () => localStorage.setItem('finboard_projects', JSON.stringify(MOCK_PROJECTS));
+
 export const getProjects = async (): Promise<ProjectRevenue[]> => [...MOCK_PROJECTS];
 
 export const addProject = async (projectData: Omit<ProjectRevenue, 'id' | 'status'>): Promise<ProjectRevenue> => {
@@ -341,19 +383,22 @@ export const addProject = async (projectData: Omit<ProjectRevenue, 'id' | 'statu
     status: 'active',
   };
   MOCK_PROJECTS.push(newProject);
+  syncProjects();
   return newProject;
 };
 
 export const updateProject = async (projectId: string, updates: Partial<ProjectRevenue>): Promise<void> => {
   MOCK_PROJECTS = MOCK_PROJECTS.map(p => p.id === projectId ? { ...p, ...updates } : p);
+  syncProjects();
 };
 
 export const terminateProject = async (projectId: string, terminationDate: string, terminationReason: string): Promise<void> => {
   MOCK_PROJECTS = MOCK_PROJECTS.map(p => p.id === projectId ? { ...p, status: 'terminated', terminationDate, terminationReason } : p);
+  syncProjects();
 };
 
 
-// PROMPT 6.8-001: Service Revenue Data
+// PROMPT 6.8-001: Service Revenue Data (Persisted)
 let MOCK_SERVICES: ServiceRevenue[] = [
   {
     id: 'serv_1', clientName: 'Axis', contractDate: '2026-03-10T12:00:00.000Z', durationInWeeks: 52, contractNumber: 'S-SERV-01',
@@ -374,6 +419,12 @@ let MOCK_SERVICES: ServiceRevenue[] = [
   },
 ];
 
+try {
+    const sServices = localStorage.getItem('finboard_services');
+    if (sServices) MOCK_SERVICES = JSON.parse(sServices);
+} catch(e) {}
+const syncServices = () => localStorage.setItem('finboard_services', JSON.stringify(MOCK_SERVICES));
+
 export const getServices = async (): Promise<ServiceRevenue[]> => [...MOCK_SERVICES];
 
 export const addService = async (serviceData: Omit<ServiceRevenue, 'id' | 'status'>): Promise<ServiceRevenue> => {
@@ -383,18 +434,21 @@ export const addService = async (serviceData: Omit<ServiceRevenue, 'id' | 'statu
     status: 'active',
   };
   MOCK_SERVICES.push(newService);
+  syncServices();
   return newService;
 };
 
 export const updateService = async (serviceId: string, updates: Partial<ServiceRevenue>): Promise<void> => {
   MOCK_SERVICES = MOCK_SERVICES.map(s => s.id === serviceId ? { ...s, ...updates } : s);
+  syncServices();
 };
 
 export const terminateService = async (serviceId: string, terminationDate: string, terminationReason: string): Promise<void> => {
   MOCK_SERVICES = MOCK_SERVICES.map(s => s.id === serviceId ? { ...s, status: 'terminated', terminationDate, terminationReason } : s);
+  syncServices();
 };
 
-// PROMPT 6.8-002: Parts Revenue Data
+// PROMPT 6.8-002: Parts Revenue Data (Persisted)
 let MOCK_PARTS: PartRevenue[] = [
   {
     id: 'part_1', clientName: 'Redco', contractDate: '2026-02-01T12:00:00.000Z', durationInWeeks: 2, contractNumber: 'P-001-RD',
@@ -412,6 +466,13 @@ let MOCK_PARTS: PartRevenue[] = [
   },
 ];
 
+try {
+    const sParts = localStorage.getItem('finboard_parts');
+    if (sParts) MOCK_PARTS = JSON.parse(sParts);
+} catch(e) {}
+const syncParts = () => localStorage.setItem('finboard_parts', JSON.stringify(MOCK_PARTS));
+
+
 export const getParts = async (): Promise<PartRevenue[]> => [...MOCK_PARTS];
 
 export const addPart = async (partData: Omit<PartRevenue, 'id' | 'status'>): Promise<PartRevenue> => {
@@ -421,15 +482,18 @@ export const addPart = async (partData: Omit<PartRevenue, 'id' | 'status'>): Pro
     status: 'active',
   };
   MOCK_PARTS.push(newPart);
+  syncParts();
   return newPart;
 };
 
 export const updatePart = async (partId: string, updates: Partial<PartRevenue>): Promise<void> => {
   MOCK_PARTS = MOCK_PARTS.map(p => p.id === partId ? { ...p, ...updates } : p);
+  syncParts();
 };
 
 export const terminatePart = async (partId: string, terminationDate: string, terminationReason: string): Promise<void> => {
   MOCK_PARTS = MOCK_PARTS.map(p => p.id === partId ? { ...p, status: 'terminated', terminationDate, terminationReason } : p);
+  syncParts();
 };
 
 
@@ -545,12 +609,14 @@ export const getDebtors = async (): Promise<DebtRecord[]> => [...DEBTORS];
 export const getCreditors = async (): Promise<DebtRecord[]> => [...CREDITORS];
 export const updateDebtor = async (id: string, updates: Partial<DebtRecord>): Promise<void> => {
   DEBTORS = DEBTORS.map(d => d.id === id ? { ...d, ...updates } : d);
+  syncDebts();
 };
 export const updateCreditor = async (id: string, updates: Partial<DebtRecord>): Promise<void> => {
   CREDITORS = CREDITORS.map(c => c.id === id ? { ...c, ...updates } : c);
+  syncDebts();
 };
-export const addDebtor = async (record: DebtRecord): Promise<void> => { DEBTORS.unshift(record); };
-export const addCreditor = async (record: DebtRecord): Promise<void> => { CREDITORS.unshift(record); };
+export const addDebtor = async (record: DebtRecord): Promise<void> => { DEBTORS.unshift(record); syncDebts(); };
+export const addCreditor = async (record: DebtRecord): Promise<void> => { CREDITORS.unshift(record); syncDebts(); };
 
 
 // --- CASH INFLOW SERVICE (PROMPT 6.1-012) ---
@@ -575,16 +641,19 @@ export const addCurrentWeekCashInflowEntry = async (entry: Partial<CashInflowRec
     isTestData: entry.isTestData || false,
   };
   CURRENT_WEEK_CASH_INFLOW.push(newEntry);
+  syncCashInflow();
   return newEntry;
 };
 export const updateCurrentWeekCashInflowEntry = async (id: string, updates: Partial<CashInflowRecord>, authorId: string): Promise<void> => {
   const index = CURRENT_WEEK_CASH_INFLOW.findIndex(e => e.id === id);
   if (index !== -1) {
     CURRENT_WEEK_CASH_INFLOW[index] = { ...CURRENT_WEEK_CASH_INFLOW[index], ...updates, authorId, timestamp: new Date().toISOString() };
+    syncCashInflow();
   }
 };
 export const deleteCurrentWeekCashInflowEntry = async (id: string): Promise<void> => {
   CURRENT_WEEK_CASH_INFLOW = CURRENT_WEEK_CASH_INFLOW.filter(e => e.id !== id);
+  syncCashInflow();
 };
 export const finalizeCurrentWeek = async (): Promise<void> => {
   const key = getWeekKey(new Date());
@@ -592,6 +661,7 @@ export const finalizeCurrentWeek = async (): Promise<void> => {
   if (!ARCHIVED_CASH_INFLOW[key]) { ARCHIVED_CASH_INFLOW[key] = []; }
   ARCHIVED_CASH_INFLOW[key].push(...entriesWithDate);
   CURRENT_WEEK_CASH_INFLOW = [];
+  syncCashInflow();
 };
 
 // ... existing code ...
@@ -915,6 +985,7 @@ const createNewRequest = (details: Partial<ExpenseRequest>, user: User): Expense
 export const submitRequest = async (details: Partial<ExpenseRequest>, user: User): Promise<ExpenseRequest> => {
   const newReq = createNewRequest(details, user);
   REQUESTS.push(newReq);
+  syncRequests();
   return newReq;
 };
 
@@ -1003,6 +1074,7 @@ export const updateRequestStatus = async (requestId: string, newStatus: RequestS
             CURRENT_YEAR_ACTUALS[req.assignedFundId][month] += amountInGel;
         }
     }
+    syncRequests();
   }
 };
 
@@ -1010,6 +1082,7 @@ export const updateRequestDetails = async (requestId: string, updates: Partial<E
     const index = REQUESTS.findIndex(r => r.id === requestId);
     if (index !== -1) {
         REQUESTS[index] = { ...REQUESTS[index], ...updates };
+        syncRequests();
     }
 };
 
@@ -1022,6 +1095,7 @@ export const resubmitRequest = async (requestId: string, updates: Partial<Expens
         status: RequestStatus.WAITING_DEPT_APPROVAL, // Reset status
         updatedAt: new Date().toISOString()
     };
+    syncRequests();
   }
 };
 
@@ -1189,6 +1263,7 @@ export const runSystemStressTestP7_4_006 = async (
       await delay(20);
     }
   }
+  syncRequests();
   log(`  [OK] Generated and injected 50 requests with IDs TEST_001 to TEST_050.`);
   log("PHASE 2: COMPLETE.");
 
@@ -1238,6 +1313,7 @@ export const runValidationStressTestP429 = async (log: (msg: string) => void) =>
 
 export const cleanTestData = async () => {
   REQUESTS = REQUESTS.filter(r => !r.isTestData);
+  syncRequests();
 }
 
 // PROMPT 6.2-015: Full Audit & Repair (P427)
@@ -1551,6 +1627,7 @@ export const runReportStressTestP425 = async (log: (msg: string) => void) => {
 
 export const clearAllRequests = async (): Promise<void> => {
   REQUESTS = [];
+  syncRequests();
 };
 
 export const generateTestRequests = async (): Promise<void> => {
@@ -1559,6 +1636,7 @@ export const generateTestRequests = async (): Promise<void> => {
       createNewRequest({ itemName: 'Generated Test 1', totalAmount: 120, isTestData: true }, emp),
       createNewRequest({ itemName: 'Generated Test 2', totalAmount: 450, isTestData: true }, emp)
     );
+    syncRequests();
 };
 
 export const createAutomatedTestFlowRequest = async (): Promise<void> => {
@@ -1566,6 +1644,7 @@ export const createAutomatedTestFlowRequest = async (): Promise<void> => {
     REQUESTS.push(
       createNewRequest({ itemName: 'Automated Flow Request', totalAmount: 999, isTestData: true }, emp)
     );
+    syncRequests();
 };
 
 export const generateAccountingRequests = async (): Promise<void> => {
@@ -1578,6 +1657,7 @@ export const generateAccountingRequests = async (): Promise<void> => {
             isTestData: true,
         }, director)
     );
+    syncRequests();
 };
 export const generateAccountingReadyRequests = generateAccountingRequests;
 
@@ -1585,6 +1665,7 @@ export const generateAccountingReadyRequests = generateAccountingRequests;
 export const clearActiveBoardData = async (): Promise<void> => {
     const statusesToClear = [RequestStatus.COUNCIL_REVIEW, RequestStatus.FD_APPROVED, RequestStatus.FD_FINAL_CONFIRM];
     REQUESTS = REQUESTS.filter(r => !statusesToClear.includes(r.status));
+    syncRequests();
 };
 
 export const generatePendingManagerRequests = async (): Promise<void> => {
@@ -1599,6 +1680,7 @@ export const generatePendingManagerRequests = async (): Promise<void> => {
             }, emp)
         );
     }
+    syncRequests();
 };
 
 export const generatePendingDirectorRequests = async (): Promise<void> => {
@@ -1611,6 +1693,7 @@ export const generatePendingDirectorRequests = async (): Promise<void> => {
             isTestData: true,
         }, manager)
     );
+    syncRequests();
 };
 
 export const generateTechAdminRequests = async (): Promise<void> => {
@@ -1726,7 +1809,7 @@ export const updateDirectiveStatus = async (directiveId: string, newStatus: 'pro
   }
 };
 
-// --- NEW: INVOICE LOGIC ---
+// --- NEW: INVOICE LOGIC (Now Persistent) ---
 
 export const createInvoice = async (invoiceData: Omit<Invoice, 'id' | 'status' | 'createdAt' | 'invoiceNumber'>): Promise<Invoice> => {
   const currentYear = new Date().getFullYear();
@@ -1741,6 +1824,7 @@ export const createInvoice = async (invoiceData: Omit<Invoice, 'id' | 'status' |
     createdAt: new Date().toISOString()
   };
   INVOICES.push(newInvoice);
+  syncInvoices();
   return newInvoice;
 };
 
@@ -1763,6 +1847,7 @@ export const updateInvoice = async (id: string, updates: Partial<Invoice>): Prom
   const index = INVOICES.findIndex(inv => inv.id === id);
   if (index !== -1) {
     INVOICES[index] = { ...INVOICES[index], ...updates };
+    syncInvoices();
   }
 };
 
@@ -1770,13 +1855,14 @@ export const updateInvoiceStatus = async (id: string, status: InvoiceStatus): Pr
   const index = INVOICES.findIndex(inv => inv.id === id);
   if (index !== -1) {
     INVOICES[index] = { ...INVOICES[index], status };
+    syncInvoices();
   }
 };
 
 
 // Dummy functions to satisfy other TestCenter imports, not required for main error fix
 export const getRequestById = async (id: string) => REQUESTS.find(r => r.id === id);
-export const deleteRequest = async (id: string) => { REQUESTS = REQUESTS.filter(r => r.id !== id); };
+export const deleteRequest = async (id: string) => { REQUESTS = REQUESTS.filter(r => r.id !== id); syncRequests(); };
 export const runFullHierarchyTest = async (log: (msg: string) => void) => { log("Test not implemented."); };
 export const runFullLoopStressTest = async (log: (msg: string) => void) => { log("Test not implemented."); };
 export const runAccountingStressTest = async (log: (msg: string) => void) => { log("Test not implemented."); };

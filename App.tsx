@@ -57,9 +57,9 @@ function App() {
   // PROMPT 6.7-004: Sidebar is now permanently expanded as per strict constraints.
   const isSidebarExpanded = true;
 
-  // PROMPT 422: FORCE CLEAR DATA FOR STEPS 4-11 ON LOAD
+  // DISABLED: Force clear data on load to allow local storage persistence to work
   useEffect(() => {
-    clearActiveBoardData();
+    // clearActiveBoardData();
   }, []);
 
   const handleLogin = (role: UserRole) => {
